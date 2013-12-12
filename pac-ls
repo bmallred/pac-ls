@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+
+import sys
+import subprocess
+
+def runCommand(command):
+    """
+    Executes a command on the local operating system.
+    """
+
+    proc = subprocess.Popen(
+        command, 
+        stdout = subprocess.PIPE, 
+        stderr = subprocess.STDOUT)
+
+    return [x.decode("utf-8").strip() for x in iter(proc.stdout.readline, b'')]
+
+def packageInfo(packages):
+    """
+    Rips the package name and version apart and places them within a dictionary.
+    """
+
+    info = {}
+
+    for package in packages:
+        name, version= package.split(' ', 2)
+    
+        if name:
+            info[name] = version
+
+    return info
+
+def printPackages(includeNative = True, includeForeign = True, includeVersion = True):
+    """
+    Print both the native and foreign packages.
+    """
+
+    native = []
+    foreign = []
+
+    if includeForeign:
+        foreign = runCommand(["pacman", "-Qm"])
+    if includeNative:
+        native = runCommand(["pacman", "-Qn"])
+
+    # Combine all found packages.
+    combined = native + foreign
+
+    # Sort and output the package information.
+    for name, version in sorted(packageInfo(combined).items()):
+        output = "\033[1m\033[60m{0}".format(name)
+
+        if includeVersion:
+            output += " \033[92m{0}".format(version)
+
+        output += "\033[0m"
+
+        if "{0} {1}".format(name, version) in foreign:
+            output += " \033[91m(foreign)\033[0m"
+
+        print(output)
+
+def printHelp():
+    print("usage: paclist [-xn] [-xf] [-xv]")
+    print("List the installed packages on your ArchLinux installation.")
+    print()
+    print("Optional arguments")
+    print("{0:>4}: {1}".format("-xn", "Exclude native packages"))
+    print("{0:>4}: {1}".format("-xf", "Exclude foreign packages"))
+    print("{0:>4}: {1}".format("-xv", "Exclude versions"))
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    includeNative = True
+    includeForeign = True
+    includeVersion = True
+
+    if args:
+        for arg in args:
+            arg = arg.lower()
+            if arg == "-xn":
+                includeNative = False
+            elif arg == "-xf":
+                includeForeign = False
+            elif arg == "-xv":
+                includeVersion = False
+            else:
+                printHelp()
+                sys.exit()
+
+    printPackages(includeNative, includeForeign, includeVersion)
